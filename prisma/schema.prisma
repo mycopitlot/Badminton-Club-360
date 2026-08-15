@@ -1,0 +1,300 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  ADMIN
+  ORGANIZER
+  COACH
+  MEMBER
+  PARENT
+  REFEREE
+}
+
+enum MemberStatus {
+  ACTIVE
+  INACTIVE
+  SUSPENDED
+  PENDING
+}
+
+enum CourtStatus {
+  ACTIVE
+  MAINTENANCE
+  INACTIVE
+}
+
+enum BookingStatus {
+  PENDING
+  CONFIRMED
+  CANCELLED
+  COMPLETED
+  NO_SHOW
+}
+
+enum TournamentStatus {
+  DRAFT
+  REGISTRATION_OPEN
+  REGISTRATION_CLOSED
+  IN_PROGRESS
+  FINISHED
+  CANCELLED
+}
+
+enum MatchStatus {
+  SCHEDULED
+  IN_PROGRESS
+  FINISHED
+  WALKOVER
+  CANCELLED
+}
+
+enum PaymentStatus {
+  PENDING
+  PAID
+  FAILED
+  REFUNDED
+  CANCELLED
+}
+
+enum PaymentType {
+  MEMBERSHIP
+  BOOKING
+  TOURNAMENT
+  DONATION
+  OTHER
+}
+
+model Club {
+  id        String   @id @default(cuid())
+  name      String
+  slug      String   @unique
+  email     String?
+  phone     String?
+  address   String?
+  timezone  String   @default("Europe/Madrid")
+  currency  String   @default("EUR")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  users         User[]
+  members       Member[]
+  courts        Court[]
+  bookings      Booking[]
+  tournaments   Tournament[]
+  payments      Payment[]
+  documents     Document[]
+  notifications Notification[]
+  auditLogs     AuditLog[]
+}
+
+model User {
+  id           String   @id @default(cuid())
+  clubId       String?
+  club         Club?    @relation(fields: [clubId], references: [id], onDelete: Cascade)
+  email        String   @unique
+  passwordHash String
+  fullName     String
+  phone        String?
+  role         Role     @default(MEMBER)
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  member Member?
+
+  @@index([clubId])
+}
+
+model Member {
+  id                 String       @id @default(cuid())
+  userId             String       @unique
+  user               User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  clubId             String
+  club               Club         @relation(fields: [clubId], references: [id], onDelete: Cascade)
+  memberCode         String
+  category           String?
+  federationLicense  String?
+  medicalCertificate Boolean      @default(false)
+  imageAuthorization Boolean      @default(false)
+  status             MemberStatus @default(PENDING)
+  birthDate          DateTime?
+  notes              String?
+  createdAt          DateTime     @default(now())
+  updatedAt          DateTime     @updatedAt
+
+  bookings                Booking[]
+  payments                Payment[]
+  tournamentRegistrations TournamentRegistration[]
+  documents               Document[]
+  notifications           Notification[]
+
+  @@unique([clubId, memberCode])
+  @@index([clubId])
+}
+
+model Court {
+  id          String      @id @default(cuid())
+  clubId      String
+  club        Club        @relation(fields: [clubId], references: [id], onDelete: Cascade)
+  name        String
+  description String?
+  indoor      Boolean     @default(true)
+  active      Boolean     @default(true)
+  status      CourtStatus @default(ACTIVE)
+  sortOrder   Int         @default(0)
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+
+  bookings Booking[]
+  matches  Match[]
+
+  @@unique([clubId, name])
+}
+
+model Booking {
+  id        String        @id @default(cuid())
+  clubId    String
+  club      Club          @relation(fields: [clubId], references: [id], onDelete: Cascade)
+  courtId   String
+  court     Court         @relation(fields: [courtId], references: [id], onDelete: Cascade)
+  memberId  String
+  member    Member        @relation(fields: [memberId], references: [id], onDelete: Cascade)
+  startsAt  DateTime
+  endsAt    DateTime
+  status    BookingStatus @default(PENDING)
+  price     Decimal?      @db.Decimal(10, 2)
+  notes     String?
+  qrToken   String?       @unique
+  createdAt DateTime      @default(now())
+  updatedAt DateTime      @updatedAt
+
+  @@index([clubId, startsAt])
+  @@index([courtId, startsAt])
+}
+
+model Tournament {
+  id                   String           @id @default(cuid())
+  clubId               String
+  club                 Club             @relation(fields: [clubId], references: [id], onDelete: Cascade)
+  name                 String
+  slug                 String           @unique
+  description          String?
+  location             String?
+  startsAt             DateTime
+  endsAt               DateTime
+  registrationDeadline DateTime?
+  status               TournamentStatus @default(DRAFT)
+  createdAt            DateTime         @default(now())
+  updatedAt            DateTime         @updatedAt
+
+  registrations TournamentRegistration[]
+  matches       Match[]
+}
+
+model TournamentRegistration {
+  id           String     @id @default(cuid())
+  tournamentId String
+  tournament   Tournament @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
+  memberId     String
+  member       Member     @relation(fields: [memberId], references: [id], onDelete: Cascade)
+  category     String
+  notes        String?
+  status       String     @default("PENDING")
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+
+  @@unique([tournamentId, memberId, category])
+}
+
+model Match {
+  id           String      @id @default(cuid())
+  tournamentId String
+  tournament   Tournament  @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
+  category     String
+  round        String
+  courtId      String?
+  court        Court?      @relation(fields: [courtId], references: [id], onDelete: SetNull)
+  scheduledAt  DateTime?
+  status       MatchStatus @default(SCHEDULED)
+  playerOne    String
+  playerTwo    String
+  winner       String?
+  score        String?
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+
+  @@index([tournamentId])
+  @@index([courtId])
+}
+
+model Payment {
+  id               String        @id @default(cuid())
+  clubId           String
+  club             Club          @relation(fields: [clubId], references: [id], onDelete: Cascade)
+  memberId         String
+  member           Member        @relation(fields: [memberId], references: [id], onDelete: Cascade)
+  type             PaymentType   @default(OTHER)
+  amount           Decimal       @db.Decimal(10, 2)
+  currency         String        @default("EUR")
+  status           PaymentStatus @default(PENDING)
+  method           String?
+  concept          String
+  invoiceNumber    String?
+  gatewayReference String?
+  paidAt           DateTime?
+  createdAt        DateTime      @default(now())
+  updatedAt        DateTime      @updatedAt
+
+  @@index([clubId, status])
+  @@index([memberId])
+}
+
+model Document {
+  id        String   @id @default(cuid())
+  clubId    String
+  club      Club     @relation(fields: [clubId], references: [id], onDelete: Cascade)
+  memberId  String?
+  member    Member?  @relation(fields: [memberId], references: [id], onDelete: SetNull)
+  name      String
+  url       String
+  type      String
+  createdAt DateTime @default(now())
+
+  @@index([clubId])
+  @@index([memberId])
+}
+
+model Notification {
+  id        String   @id @default(cuid())
+  clubId    String
+  club      Club     @relation(fields: [clubId], references: [id], onDelete: Cascade)
+  memberId  String?
+  member    Member?  @relation(fields: [memberId], references: [id], onDelete: Cascade)
+  title     String
+  body      String
+  read      Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  @@index([clubId])
+  @@index([memberId])
+}
+
+model AuditLog {
+  id        String   @id @default(cuid())
+  clubId    String?
+  club      Club?    @relation(fields: [clubId], references: [id], onDelete: SetNull)
+  userId    String?
+  action    String
+  entity    String
+  entityId  String?
+  metadata  Json?
+  createdAt DateTime @default(now())
+
+  @@index([clubId])
+}
