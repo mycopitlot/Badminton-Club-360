@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { useState, useEffect } from "react";
 
@@ -31,9 +31,14 @@ export default function PistasPage() {
   async function handleCreate(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     const formData = new FormData(e.currentTarget);
-    const payload = Object.fromEntries(formData.entries());
-    payload.indoor = formData.get("indoor") === "on";
-    payload.active = formData.get("active") === "on";
+    
+    const payload = {
+      name: formData.get("name") as string,
+      description: formData.get("description") as string,
+      sortOrder: Number(formData.get("sortOrder")) || 0,
+      indoor: formData.get("indoor") === "on",
+      active: formData.get("active") === "on",
+    };
 
     const res = await fetch("/api/courts", {
       method: "POST",
@@ -254,7 +259,6 @@ export default function PistasPage() {
         </table>
       </div>
 
-      {/* Modal de edición */}
       {editingCourt && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4">
           <form

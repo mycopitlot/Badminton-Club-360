@@ -1,4 +1,4 @@
-﻿import { Resend } from "resend";
+import { Resend } from "resend";
 
 const resend = process.env.RESEND_API_KEY
   ? new Resend(process.env.RESEND_API_KEY)
@@ -28,7 +28,7 @@ export async function sendEmail(
   to: string,
   subject: string,
   body: string
-): Promise<{ success: boolean; simulated?: boolean; error?: any }> {
+): Promise<{ success: boolean; simulated?: boolean; error?: any; data?: any }> {
   if (!resend) {
     console.log("=== EMAIL SIMULADO (RESEND_API_KEY no configurada) ===");
     console.log("Para:", to);
