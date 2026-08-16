@@ -1,10 +1,10 @@
-﻿import { NextResponse } from "next/server";
+import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getSession } from "@/lib/session";
 
 export async function GET(
   request: Request,
-  { params }: { params: { id: string } }
+  context: { params: Promise<{ id: string }> }
 ) {
   try {
     const session = await getSession();
@@ -13,6 +13,7 @@ export async function GET(
       return NextResponse.json({ error: "No autorizado" }, { status: 401 });
     }
 
+    const params = await context.params;
     const memberId = params.id;
     const clubId = session.clubId;
 
@@ -22,36 +23,18 @@ export async function GET(
         ...(clubId ? { clubId } : {}),
       },
       include: {
-        user: {
-          select: {
-            fullName: true,
-            email: true,
-            phone: true,
-          },
-        },
-        club: {
-          select: {
-            name: true,
-            slug: true,
-          },
-        },
+        user: { select: { fullName: true, email: true, phone: true } },
+        club: { select: { name: true, slug: true } },
         payments: {
-          where: {
-            status: "PAID",
-          },
-          orderBy: {
-            createdAt: "desc",
-          },
+          where: { status: "PAID" },
+          orderBy: { createdAt: "desc" },
           take: 1,
         },
       },
     });
 
     if (!member) {
-      return NextResponse.json(
-        { error: "Socio no encontrado" },
-        { status: 404 }
-      );
+      return NextResponse.json({ error: "Socio no encontrado" }, { status: 404 });
     }
 
     const lastPayment = member.payments.length > 0 ? member.payments[0] : null;
@@ -79,9 +62,6 @@ export async function GET(
     });
   } catch (error) {
     console.error("Error al obtener carnet:", error);
-    return NextResponse.json(
-      { error: "Error al obtener el carnet" },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: "Error al obtener el carnet" }, { status: 500 });
   }
 }
