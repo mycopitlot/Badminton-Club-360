@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { useState, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
@@ -34,6 +34,7 @@ export default function MemberCardPage() {
 
   const [card, setCard] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [fullCardUrl, setFullCardUrl] = useState("");
 
   useEffect(() => {
     async function fetchCard() {
@@ -43,6 +44,13 @@ export default function MemberCardPage() {
 
         if (res.ok) {
           setCard(data);
+          
+          // Calcular URL completa después de montar
+          const hostname = window.location.hostname;
+          const port = window.location.port;
+          const protocol = window.location.protocol;
+          const url = protocol + "//" + hostname + (port ? ":" + port : "") + data.cardUrl;
+          setFullCardUrl(url);
         } else {
           alert(data.error || "Error al cargar el carnet");
           router.push("/dashboard/socios");
@@ -77,26 +85,6 @@ export default function MemberCardPage() {
     .slice(0, 2)
     .join("")
     .toUpperCase();
-
-  // Construir URL completa dinámicamente
-  const getFullUrl = () => {
-    if (typeof window === "undefined") return card.cardUrl;
-    
-    const hostname = window.location.hostname;
-    const port = window.location.port;
-    const protocol = window.location.protocol;
-    
-    // Si es localhost, usar la IP de la red local si está disponible
-    if (hostname === "localhost" || hostname === "127.0.0.1") {
-      // En desarrollo, usar la misma IP que está usando el usuario
-      return protocol + "//" + hostname + (port ? ":" + port : "") + card.cardUrl;
-    }
-    
-    // En producción o red local, usar el hostname actual
-    return protocol + "//" + hostname + (port ? ":" + port : "") + card.cardUrl;
-  };
-
-  const fullCardUrl = getFullUrl();
 
   return (
     <div className="mx-auto w-full max-w-2xl space-y-6">
@@ -188,14 +176,18 @@ export default function MemberCardPage() {
                 </p>
               )}
             </div>
-            <div className="shrink-0 rounded-lg bg-white p-2">
-              <QRCodeSVG
-                value={fullCardUrl}
-                size={120}
-                level="M"
-                includeMargin={false}
-              />
-            </div>
+            {fullCardUrl && (
+              <div className="shrink-0 rounded-lg bg-white p-2">
+                <QRCodeSVG
+                  value={fullCardUrl}
+                  size={140}
+                  level="M"
+                  includeMargin={false}
+                  bgColor="#ffffff"
+                  fgColor="#000000"
+                />
+              </div>
+            )}
           </div>
         </div>
 
