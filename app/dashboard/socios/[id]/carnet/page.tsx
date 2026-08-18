@@ -34,9 +34,11 @@ export default function MemberCardPage() {
 
   const [card, setCard] = useState<any>(null);
   const [loading, setLoading] = useState(true);
-  const [fullCardUrl, setFullCardUrl] = useState("");
+  const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
+    setMounted(true);
+
     async function fetchCard() {
       try {
         const res = await fetch("/api/members/" + memberId + "/card");
@@ -44,13 +46,6 @@ export default function MemberCardPage() {
 
         if (res.ok) {
           setCard(data);
-          
-          // Calcular URL completa después de montar
-          const hostname = window.location.hostname;
-          const port = window.location.port;
-          const protocol = window.location.protocol;
-          const url = protocol + "//" + hostname + (port ? ":" + port : "") + data.cardUrl;
-          setFullCardUrl(url);
         } else {
           alert(data.error || "Error al cargar el carnet");
           router.push("/dashboard/socios");
@@ -85,6 +80,10 @@ export default function MemberCardPage() {
     .slice(0, 2)
     .join("")
     .toUpperCase();
+
+  const origin =
+    mounted && typeof window !== "undefined" ? window.location.origin : "";
+  const qrValue = origin ? origin + card.cardUrl : card.cardUrl;
 
   return (
     <div className="mx-auto w-full max-w-2xl space-y-6">
@@ -158,8 +157,8 @@ export default function MemberCardPage() {
             </div>
           </div>
 
-          <div className="mt-6 flex items-center justify-between rounded-xl bg-white p-4">
-            <div className="flex-1">
+          <div className="mt-6 flex items-center justify-between gap-4 rounded-xl bg-white p-4">
+            <div className="min-w-0 flex-1">
               <p className="text-xs font-semibold text-slate-600">
                 Escanea para validar
               </p>
@@ -176,18 +175,19 @@ export default function MemberCardPage() {
                 </p>
               )}
             </div>
-            {fullCardUrl && (
-              <div className="shrink-0 rounded-lg bg-white p-2">
-                <QRCodeSVG
-                  value={fullCardUrl}
-                  size={140}
-                  level="M"
-                  includeMargin={false}
-                  bgColor="#ffffff"
-                  fgColor="#000000"
-                />
-              </div>
-            )}
+
+            <div
+              className="flex shrink-0 items-center justify-center rounded-lg border border-slate-300 bg-white p-2"
+              style={{ width: 160, height: 160 }}
+            >
+              <QRCodeSVG
+                value={qrValue}
+                size={140}
+                level="M"
+                bgColor="#ffffff"
+                fgColor="#000000"
+              />
+            </div>
           </div>
         </div>
 
@@ -239,7 +239,7 @@ export default function MemberCardPage() {
           URL del carnet (para el móvil del socio)
         </p>
         <p className="mt-1 break-all font-mono text-xs text-blue-400">
-          {fullCardUrl}
+          {qrValue}
         </p>
         <p className="mt-2 text-xs text-slate-400">
           Esta URL puede enviarse al socio para que acceda a su carnet desde
