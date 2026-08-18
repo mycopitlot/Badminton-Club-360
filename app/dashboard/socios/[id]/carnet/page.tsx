@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
-import { QRCodeSVG } from "qrcode.react";
+import QRCode from "qrcode";
 
 function formatDate(value: string) {
   return new Date(value).toLocaleDateString("es-ES", {
@@ -35,6 +35,7 @@ export default function MemberCardPage() {
   const [card, setCard] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [mounted, setMounted] = useState(false);
+  const [qrDataUrl, setQrDataUrl] = useState("");
 
   useEffect(() => {
     setMounted(true);
@@ -62,6 +63,22 @@ export default function MemberCardPage() {
     fetchCard();
   }, [memberId, router]);
 
+  const origin =
+    mounted && typeof window !== "undefined" ? window.location.origin : "";
+  const qrValue = card ? origin + card.cardUrl : "";
+
+  useEffect(() => {
+    if (!qrValue) return;
+
+    QRCode.toDataURL(qrValue, {
+      width: 280,
+      margin: 1,
+      color: { dark: "#000000", light: "#ffffff" },
+    })
+      .then(setQrDataUrl)
+      .catch((err) => console.error("Error generando QR:", err));
+  }, [qrValue]);
+
   if (loading) {
     return (
       <div className="flex items-center justify-center py-20">
@@ -80,10 +97,6 @@ export default function MemberCardPage() {
     .slice(0, 2)
     .join("")
     .toUpperCase();
-
-  const origin =
-    mounted && typeof window !== "undefined" ? window.location.origin : "";
-  const qrValue = origin ? origin + card.cardUrl : card.cardUrl;
 
   return (
     <div className="mx-auto w-full max-w-2xl space-y-6">
@@ -176,17 +189,16 @@ export default function MemberCardPage() {
               )}
             </div>
 
-            <div
-              className="flex shrink-0 items-center justify-center rounded-lg border border-slate-300 bg-white p-2"
-              style={{ width: 160, height: 160 }}
-            >
-              <QRCodeSVG
-                value={qrValue}
-                size={140}
-                level="M"
-                bgColor="#ffffff"
-                fgColor="#000000"
-              />
+            <div className="flex h-[150px] w-[150px] shrink-0 items-center justify-center overflow-hidden rounded-lg bg-white">
+              {qrDataUrl ? (
+                <img
+                  src={qrDataUrl}
+                  alt="Código QR del carnet"
+                  className="h-[140px] w-[140px]"
+                />
+              ) : (
+                <div className="h-[140px] w-[140px] animate-pulse bg-slate-200" />
+              )}
             </div>
           </div>
         </div>
